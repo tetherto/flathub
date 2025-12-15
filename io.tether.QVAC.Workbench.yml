@@ -14,13 +14,15 @@ finish-args:
   - --talk-name=org.kde.StatusNotifierWatcher
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
   - --talk-name=org.freedesktop.ScreenSaver
+  - --filesystem=~/.config/pear # persistance for pear related files
+  - --filesystem=~/.qvac # persistance for qvac related files
 modules:
-  - name: assets
+  - name: assets # shared module for asset handling
     buildsystem: simple
     build-commands:
-      - mkdir -p /app/share/metainfo/ && cp io.tether.QVAC.Workbench.metainfo.xml /app/share/metainfo/
-      - mkdir -p /app/share/icons/hicolor/512x512/apps/ && cp io.tether.QVAC.Workbench.png /app/share/icons/hicolor/512x512/apps/
-      - mkdir -p /app/share/applications/ && cp io.tether.QVAC.Workbench.desktop /app/share/applications/
+      - install -Dm644 io.tether.QVAC.Workbench.metainfo.xml /app/share/metainfo/io.tether.QVAC.Workbench.metainfo.xml
+      - install -Dm644 io.tether.QVAC.Workbench.png /app/share/icons/hicolor/512x512/apps/io.tether.QVAC.Workbench.png
+      - install -Dm644 io.tether.QVAC.Workbench.desktop /app/share/applications/io.tether.QVAC.Workbench.desktop
     sources:
       - type: file
         url: https://qvac.tether.dev/flatpak-submission-assets/io.tether.QVAC.Workbench.png
