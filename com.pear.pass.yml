@@ -82,10 +82,10 @@ modules:
         url: https://github.com/tetherto/pearpass-app-desktop/archive/refs/tags/v1.0.1.tar.gz
         sha512: 5974afe2acb4b0263f5da90106da7e513a561c73a9fd80375d6de589668e55eaec6f91dcf1d8ae6644137a2635e485baf70e969734e18c387e57d026b3779fa2
         strip-components: 1
-      # Application icon (from GitHub repository)
+      # Application icon
       - type: file
-        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/main/assets/darwin/icon.png
-        sha512: 8b14978257490d87b3bd2a0f2374962925e956af09fe84a3c3109b9b263c9d003be131e196014d03f8f5bc1de2066917fcab78d6363508e26d0b4b753ec01010
+        url: https://pass.pears.com/wp-content/uploads/downloads/pearpass-logo-512x512.png
+        sha512: 08dcb60ad2671e1c3218c7fbd2323a9cf7a97a80ab460307bd1c85d91334b2052033d7ad8651ef4e88e0b31af59ffc002785ac76f0945108ef317a242f1bd040
         dest-filename: com.pear.pass.png
       # AppStream metainfo XML (from GitHub repository)
       - type: file
