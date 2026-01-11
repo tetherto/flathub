@@ -5,10 +5,14 @@ sdk: org.gnome.Sdk
 command: qvac_workbench
 base: org.electronjs.Electron2.BaseApp
 base-version: '25.08'
+build-options:
+  strip: false
+  no-debuginfo: true
 finish-args:
   - --share=ipc
   - --share=network
   - --socket=x11
+  - --socket=wayland
   - --socket=pulseaudio
   - --device=all
   - --talk-name=org.kde.StatusNotifierWatcher
@@ -22,13 +26,12 @@ modules:
       - x86_64
     buildsystem: simple
     build-commands:
-      - install -Dm644 splash.png /app/bin/share/qvac_workbench/splash.png
       - install -Dm644 io.tether.QVAC.Workbench.metainfo.xml /app/share/metainfo/io.tether.QVAC.Workbench.metainfo.xml
       - install -Dm644 io.tether.QVAC.Workbench.png /app/share/icons/hicolor/512x512/apps/io.tether.QVAC.Workbench.png
       - install -Dm644 io.tether.QVAC.Workbench.desktop /app/share/applications/io.tether.QVAC.Workbench.desktop
-      - cp qvac_workbench $FLATPAK_DEST/bin
+      - install -Dm755 qvac_workbench $FLATPAK_DEST/bin/qvac_workbench
     sources:
       - type: archive
-        url: https://qvac.tether.dev/workbench-assets/flatpak-assets-1.0.0.tar.gz
-        sha512: 1d88a9b8619175f7294c3a833124a6f707ba276f3bea6a62431dd5f3b067939080ee3b91d3c9e8f0c2e1e1bdb68e027f2cd133db57d73de6de592f396dd8b097
+        url: https://static.tether.dev/qvac/workbench/flatpak-assets-1.0.0.tar.gz
+        sha512: bce96c60c1c49124fc83fda9034466691e12c8afbf26cf6ce0e24b44e3581665bd7123a06b4f0cc7b32e34d0f959ac219cd48fe62b78a68c315c236da1eb5273
         strip-components: 0
