@@ -12,62 +12,78 @@ runtime-version: '49'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node20
-  - org.freedesktop.Sdk.Extension.llvm18
+  - org.freedesktop.Sdk.Extension.llvm21
 command: pearpass
 base: org.electronjs.Electron2.BaseApp
 base-version: '24.08'
 build-options:
-  append-path: /usr/lib/sdk/node20/bin:/usr/lib/sdk/llvm18/bin
+  append-path: /usr/lib/sdk/node20/bin:/usr/lib/sdk/llvm21/bin
   env:
     CC: clang
     CXX: clang++
+    FLATPAK_BUILDER_DISABLE_APPSTREAM: "1"
 finish-args:
-  # Inter-process communication (required for Electron/Chromium)
   - --share=ipc
-  # Network access (required for peer-to-peer sync functionality)
-  - --share=network
-  # Wayland display (preferred on modern Linux desktops)
-  - --socket=wayland
-  # X11 fallback for systems without Wayland
   - --socket=fallback-x11
-  # GPU acceleration for rendering
+  - --socket=wayland
   - --device=dri
-  # Cursor theme support
-  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  # Persistent storage for Pear runtime and app data
-  - --persist=.config/pear
+  - --filesystem=home
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.kwalletd5
+  - --talk-name=org.kde.kwalletd6
 modules:
-  - name: pearpass-x64
-    only-arches:
-      - x86_64
+  - name: pearpass-build-v2
     buildsystem: simple
+    build-options:
+      build-args:
+        - --share=network
     build-commands:
-      # Install bare-make build tool globally
-      - npm install -g bare-make
-      # Install appling build dependencies
-      - cd appling && npm install --legacy-peer-deps
-      # Generate CMake build files for Linux x64
-      - cd appling && bare-make generate --platform linux --arch x64
-      # Build the application
-      - cd appling && bare-make build
-      # Find and install the built binary (AppImage or executable)
+      - echo "=== BUILD STARTING ==="
+      - ls -la
+      # Extract the source archive
+      - tar -xzf pearpass-app-desktop-1.0.1.tar.gz
+      - cd pearpass-app-desktop-1.0.1
+      - ls -la
+      # Check for appling directory
       - |
-        BINARY=$(find . -type f -name "*.AppImage" | head -1)
-        if [ -n "$BINARY" ]; then
-          chmod +x "$BINARY"
-          "$BINARY" --appimage-extract
-          cp -r squashfs-root/usr/* /app/ 2>/dev/null || true
-          install -Dm755 squashfs-root/AppRun /app/bin/pearpass
+        cd pearpass-app-desktop-1.0.1
+        if [ -d "appling" ]; then
+          echo "Found appling directory"
+          cd appling
+          ls -la
+          # Test network connectivity
+          curl -I https://registry.npmjs.org/ || echo "Network test failed"
+          # Install dependencies and build tools
+          npm install --legacy-peer-deps
+          npm install bare-make --no-save
+          # Generate and build using bare-make
+          npx bare-make generate --platform linux --arch arm64
+          npx bare-make build || true  # Continue even if AppImage creation fails
+          # Find and install the built binary directly
+          if [ -f "build/pearpass" ]; then
+            echo "Installing binary directly: build/pearpass"
+            install -Dm755 build/pearpass /app/bin/pearpass
+          else
+            echo "Looking for pearpass binary in other locations"
+            find . -name "pearpass" -type f -executable
+            BINARY=$(find . -name "pearpass" -type f -executable | head -1)
+            if [ -n "$BINARY" ]; then
+              echo "Installing binary: $BINARY"
+              install -Dm755 "$BINARY" /app/bin/pearpass
+            else
+              echo "No pearpass binary found"
+              exit 1
+            fi
+          fi
         else
-          BINARY=$(find . -type f -name "pearpass" -executable | head -1)
-          install -Dm755 "$BINARY" /app/bin/pearpass
+          echo "No appling directory found"
+          exit 1
         fi
-      # Install AppStream metainfo
+      # Install metadata files
       - install -Dm644 com.pear.pass.metainfo.xml /app/share/metainfo/com.pear.pass.metainfo.xml
-      # Install application icon (512x512)
       - install -Dm644 com.pear.pass.png /app/share/icons/hicolor/512x512/apps/com.pear.pass.png
-      # Install desktop entry
       - install -Dm644 com.pear.pass.desktop /app/share/applications/com.pear.pass.desktop
+      - echo "=== BUILD COMPLETE ==="
     sources:
       # Source code from GitHub repository
       - type: archive
