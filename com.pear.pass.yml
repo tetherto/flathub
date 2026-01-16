@@ -23,14 +23,26 @@ build-options:
     CXX: clang++
     FLATPAK_BUILDER_DISABLE_APPSTREAM: "1"
 finish-args:
+  # Inter-process communication (required for Electron/Chromium)
   - --share=ipc
-  - --socket=fallback-x11
+  # Network access (required for peer-to-peer sync functionality)
+  - --share=network
+  # Wayland display (preferred on modern Linux desktops)
   - --socket=wayland
+  # X11 fallback for systems without Wayland
+  - --socket=fallback-x11
+  # GPU acceleration for rendering
   - --device=dri
+  # Cursor theme support
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+  # Home directory access
   - --filesystem=home
+  # System keyring access
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.kde.kwalletd5
   - --talk-name=org.kde.kwalletd6
+  # Persistent storage for Pear runtime and app data
+  - --persist=.config/pear
 modules:
   - name: pearpass-build-v2
     buildsystem: simple
