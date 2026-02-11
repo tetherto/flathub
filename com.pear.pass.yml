@@ -1,117 +1,66 @@
-# Flatpak manifest for PearPass Desktop Application
-# A secure, decentralized and fully local password manager
-#
-# This manifest builds the application from source.
-# Requires network access during build for npm and cmake-pear dependencies.
-#
-# Build with: flatpak-builder --allow-network --force-clean build-dir com.pear.pass.yml
-
-id: com.pear.pass
+app-id: com.pear.pass
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.node20
-  - org.freedesktop.Sdk.Extension.llvm21
-command: pearpass
-base: org.electronjs.Electron2.BaseApp
-base-version: '24.08'
-build-options:
-  append-path: /usr/lib/sdk/node20/bin:/usr/lib/sdk/llvm21/bin
-  env:
-    CC: clang
-    CXX: clang++
-    FLATPAK_BUILDER_DISABLE_APPSTREAM: "1"
+command: pear-pass
 finish-args:
-  # Inter-process communication (required for Electron/Chromium)
   - --share=ipc
-  # Network access (required for peer-to-peer sync functionality)
-  - --share=network
-  # Wayland display (preferred on modern Linux desktops)
+  - --socket=x11
   - --socket=wayland
-  # X11 fallback for systems without Wayland
-  - --socket=fallback-x11
-  # GPU acceleration for rendering
+  - --socket=pulseaudio
+  - --share=network
   - --device=dri
-  # Cursor theme support
-  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  # Home directory access
   - --filesystem=home
-  # System keyring access
-  - --talk-name=org.freedesktop.secrets
-  - --talk-name=org.kde.kwalletd5
-  - --talk-name=org.kde.kwalletd6
-  # Persistent storage for Pear runtime and app data
-  - --persist=.config/pear
+  - --filesystem=xdg-config/pear:create
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.kde.*
+
 modules:
-  - name: pearpass-build-v2
+  - name: pearpass
     buildsystem: simple
-    build-options:
-      build-args:
-        - --share=network
     build-commands:
-      - echo "=== BUILD STARTING ==="
-      - ls -la
-      # Extract the source archive
-      - tar -xzf pearpass-app-desktop-1.0.1.tar.gz
-      - cd pearpass-app-desktop-1.0.1
-      - ls -la
-      # Check for appling directory
-      - |
-        cd pearpass-app-desktop-1.0.1
-        if [ -d "appling" ]; then
-          echo "Found appling directory"
-          cd appling
-          ls -la
-          # Test network connectivity
-          curl -I https://registry.npmjs.org/ || echo "Network test failed"
-          # Install dependencies and build tools
-          npm install --legacy-peer-deps
-          npm install bare-make --no-save
-          # Generate and build using bare-make
-          npx bare-make generate --platform linux --arch arm64
-          npx bare-make build || true  # Continue even if AppImage creation fails
-          # Find and install the built binary directly
-          if [ -f "build/pearpass" ]; then
-            echo "Installing binary directly: build/pearpass"
-            install -Dm755 build/pearpass /app/bin/pearpass
-          else
-            echo "Looking for pearpass binary in other locations"
-            find . -name "pearpass" -type f -executable
-            BINARY=$(find . -name "pearpass" -type f -executable | head -1)
-            if [ -n "$BINARY" ]; then
-              echo "Installing binary: $BINARY"
-              install -Dm755 "$BINARY" /app/bin/pearpass
-            else
-              echo "No pearpass binary found"
-              exit 1
-            fi
-          fi
-        else
-          echo "No appling directory found"
-          exit 1
-        fi
-      # Install metadata files
-      - install -Dm644 com.pear.pass.metainfo.xml /app/share/metainfo/com.pear.pass.metainfo.xml
-      - install -Dm644 com.pear.pass.png /app/share/icons/hicolor/512x512/apps/com.pear.pass.png
-      - install -Dm644 com.pear.pass.desktop /app/share/applications/com.pear.pass.desktop
-      - echo "=== BUILD COMPLETE ==="
+      # Extract AppImage
+      - chmod +x PearPass.AppImage
+      - ./PearPass.AppImage --appimage-extract
+      # Install binary (must be named pear-pass for Bare runtime to find app.bundle)
+      - install -Dm755 squashfs-root/usr/bin/pear-pass ${FLATPAK_DEST}/bin/pear-pass
+      # Install native libraries
+      - mkdir -p ${FLATPAK_DEST}/lib && cp -a squashfs-root/usr/lib/*.so ${FLATPAK_DEST}/lib/ 2>/dev/null || true
+      # Install app bundle
+      - if [ -d squashfs-root/usr/share/pear-pass ]; then mkdir -p ${FLATPAK_DEST}/share/pear-pass && cp -r squashfs-root/usr/share/pear-pass/* ${FLATPAK_DEST}/share/pear-pass/; fi
+      # Cleanup extracted AppImage
+      - rm -rf squashfs-root PearPass.AppImage
+      # Install desktop integration files
+      - install -Dm644 com.pear.pass.desktop ${FLATPAK_DEST}/share/applications/com.pear.pass.desktop
+      - install -Dm644 com.pear.pass.metainfo.xml ${FLATPAK_DEST}/share/metainfo/com.pear.pass.metainfo.xml
+      - install -Dm644 icon.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/com.pear.pass.png
+    build-options:
+      env:
+        LD_LIBRARY_PATH: /app/lib
     sources:
-      # Source code from GitHub repository
-      - type: archive
-        url: https://static.tether.dev/pearpass/flatpak-assets-1.0.0.tar.gz
-        sha512: 05f04b50ee89661b996c7314e02cc12969c6a83ade0f5fe45b5a334425c3524b81033d27847eb26133aa1bfe076969b86838230f77cafb5d312047006b8d146b
-        strip-components: 1
+      # AppImage from GitHub releases - x86_64
+      - type: file
+        only-arches:
+          - x86_64
+        url: https://github.com/tetherto/pearpass-app-desktop/releases/download/v1.3.0/PearPass-Desktop-Linux-x64-v1.3.0.AppImage
+        sha256: b6854af9d7c4f135b7267f2ac0c80b834fb162730d55068a2cdeccb3247985ba
+        dest-filename: PearPass.AppImage
+      # AppImage from GitHub releases - aarch64
+      - type: file
+        only-arches:
+          - aarch64
+        url: https://github.com/tetherto/pearpass-app-desktop/releases/download/v1.3.0/PearPass-Desktop-Linux-arm64-v1.3.0.AppImage
+        sha256: 0d789554259c3274dcb1e6ea78cf97c2747e4443a9c22cddeb83961de048db62
+        dest-filename: PearPass.AppImage
+      # Desktop file
+      - type: file
+        path: com.pear.pass.desktop
+      # Metainfo file
+      - type: file
+        path: com.pear.pass.metainfo.xml
       # Application icon
       - type: file
         url: https://pass.pears.com/wp-content/uploads/downloads/pearpass-logo-512x512.png
-        sha512: 08dcb60ad2671e1c3218c7fbd2323a9cf7a97a80ab460307bd1c85d91334b2052033d7ad8651ef4e88e0b31af59ffc002785ac76f0945108ef317a242f1bd040
-        dest-filename: com.pear.pass.png
-      # AppStream metainfo XML (from GitHub repository)
-      - type: file
-        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/4b0796a037602791a4363a7b96e3b8e4cd02ccb7/flatpak/com.pear.pass.metainfo.xml
-        sha512: 6ff664d09325aa6257fcf6d252b68ed6193602c7d006a1f28e3d7a8a2150d3bcb88d86a61f23b8774838a5f553f59b338ac1cd7547645f21a76fe3bde7372922
-      # Desktop entry file (from GitHub repository)
-      - type: file
-        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/4b0796a037602791a4363a7b96e3b8e4cd02ccb7/flatpak/com.pear.pass.desktop
-        sha512: 52b684ce046fbd3ce41c975cf252f956ec82829fbe054fe8daf57ec46f4c33988ed36cabb4916d8ba921a3932b6e0c6342d17ff5166ce89b664edb9113ac3cda
+        sha256: a8ea7dc111b53d7da9a3afc24327bcc9f2f11a6bb5d431d6cf05b71cbfc0e70e
+        dest-filename: icon.png

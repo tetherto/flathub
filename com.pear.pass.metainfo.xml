@@ -36,7 +36,7 @@
     </ul>
   </description>
 
-  <launchable type="desktop-id">com.pears.pass.desktop</launchable>
+  <launchable type="desktop-id">com.pear.pass.desktop</launchable>
 
   <branding>
     <color type="primary" scheme_preference="light">#4CAF50</color>
@@ -44,7 +44,6 @@
   </branding>
 
   <screenshots>
-    <!-- TODO: Add actual screenshot URLs before submission -->
     <screenshot type="default">
       <caption>Main vault view with password entries</caption>
       <image>https://pearpass.io/screenshots/vault-view.png</image>
@@ -62,7 +61,33 @@
   <content_rating type="oars-1.1" />
 
   <releases>
-    <release version="1.0.1" date="2024-12-19">
+    <release version="1.3.0" date="2026-01-30">
+      <description>
+        <p>New features and improvements:</p>
+        <ul>
+          <li>Updated dependencies and stability improvements</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.2.0" date="2026-01-16">
+      <description>
+        <p>New features and improvements:</p>
+        <ul>
+          <li>Improved Flatpak and Snap packaging support</li>
+          <li>Enhanced browser extension integration</li>
+          <li>Multi-architecture support (x64 and arm64)</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.1.0" date="2025-12-24">
+      <description>
+        <p>New features and improvements:</p>
+        <ul>
+          <li>Updated dependencies and stability improvements</li>
+        </ul>
+      </description>
+    </release>
+    <release version="1.0.1" date="2025-12-10">
       <description>
         <p>Latest stable release of PearPass.</p>
       </description>
@@ -99,7 +124,7 @@
   </keywords>
 
   <provides>
-    <binary>pearpass</binary>
+    <binary>pear-pass</binary>
   </provides>
 
   <requires>
