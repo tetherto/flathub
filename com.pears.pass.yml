@@ -1,0 +1,113 @@
+id: com.pears.pass
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node22
+  - org.freedesktop.Sdk.Extension.llvm18
+command: pear-pass
+build-options:
+  strip: false
+  no-debuginfo: true
+  append-path: /usr/lib/sdk/node22/bin:/usr/lib/sdk/llvm18/bin
+  env:
+    CC: clang
+    CXX: clang++
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=x11
+  - --socket=pulseaudio
+  - --device=all
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --persist=.config/pear
+modules:
+  - name: pearpass
+    buildsystem: simple
+    build-options:
+      env:
+        XDG_CACHE_HOME: /run/build/pearpass/flatpak-node/cache
+        npm_config_cache: /run/build/pearpass/flatpak-node/npm-cache
+        npm_config_nodedir: /usr/lib/sdk/node22
+        npm_config_offline: 'true'
+    build-commands:
+      # Install desktop integration files (fix app ID from com.pear.pass to com.pears.pass)
+      - >-
+        sed 's/com\.pear\.pass/com.pears.pass/g'
+        flatpak/com.pear.pass.desktop |
+        sed 's/Exec=pearpass/Exec=pear-pass/' >
+        com.pears.pass.desktop
+      - install -Dm644 com.pears.pass.desktop /app/share/applications/com.pears.pass.desktop
+      - >-
+        sed 's/com\.pear\.pass/com.pears.pass/g'
+        flatpak/com.pear.pass.metainfo.xml |
+        sed 's|<binary>pearpass</binary>|<binary>pear-pass</binary>|' >
+        com.pears.pass.metainfo.xml
+      - install -Dm644 com.pears.pass.metainfo.xml /app/share/metainfo/com.pears.pass.metainfo.xml
+      - install -Dm644 com.pears.pass.png /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
+      # Install bare-build globally from offline npm cache
+      - npm install --global bare-build --offline
+      # Install appling dependencies from offline npm cache
+      - cd appling && npm ci --offline
+      # Build the AppImage (architecture detected at build time)
+      - |
+        cd appling
+        ARCH=$(uname -m)
+        if [ "$ARCH" = "x86_64" ]; then BARE_ARCH="x64"
+        elif [ "$ARCH" = "aarch64" ]; then BARE_ARCH="arm64"
+        else echo "Unsupported architecture: $ARCH" && exit 1; fi
+        bare-build --host=linux-${BARE_ARCH} --package --icon lib/icons/linux/icon.png app.cjs
+      # Extract AppImage and install binary + resources
+      - |
+        APPIMAGE=$(find . -name "*.AppImage" -type f | head -n 1)
+        chmod +x "$APPIMAGE"
+        "$APPIMAGE" --appimage-extract
+      - install -Dm755 squashfs-root/usr/bin/pear-pass $FLATPAK_DEST/bin/pear-pass
+      - mkdir -p $FLATPAK_DEST/lib && cp -a squashfs-root/usr/lib/*.so $FLATPAK_DEST/lib/ 2>/dev/null || true
+      - |
+        if [ -d squashfs-root/usr/share/pear-pass ]; then
+          mkdir -p $FLATPAK_DEST/share/pear-pass
+          cp -r squashfs-root/usr/share/pear-pass/* $FLATPAK_DEST/share/pear-pass/
+        fi
+      - rm -rf squashfs-root
+    sources:
+      - type: git
+        url: https://github.com/tetherto/pearpass-app-desktop.git
+        tag: v1.3.0
+        commit: 0c96cc95374d39093ef915ece6a3712ceb3a75ac
+      # Application icon
+      - type: file
+        url: https://pass.pears.com/wp-content/uploads/downloads/pearpass-logo-512x512.png
+        sha256: a8ea7dc111b53d7da9a3afc24327bcc9f2f11a6bb5d431d6cf05b71cbfc0e70e
+        dest-filename: com.pears.pass.png
+      # Offline npm sources for bare-build (global) and appling dependencies.
+      # Generate with flatpak-node-generator from flatpak-builder-tools:
+      #
+      #   pip install aiohttp
+      #   git clone https://github.com/flatpak/flatpak-builder-tools.git
+      #   cd flatpak-builder-tools/node
+      #
+      #   # 1. Generate sources for appling dependencies:
+      #   python3 flatpak-node-generator.py npm \
+      #     /path/to/pearpass-app-desktop/appling/package-lock.json \
+      #     -o generated-sources-appling.json
+      #
+      #   # 2. Generate sources for bare-build (create a temp lock file first):
+      #   mkdir /tmp/bare-build-pkg && cd /tmp/bare-build-pkg
+      #   npm init -y && npm install bare-build --package-lock-only
+      #   python3 /path/to/flatpak-node-generator.py npm package-lock.json \
+      #     -o generated-sources-bare-build.json
+      #
+      #   # 3. Merge both JSON arrays into a single generated-sources.json:
+      #   python3 -c "
+      #   import json
+      #   a = json.load(open('generated-sources-appling.json'))
+      #   b = json.load(open('generated-sources-bare-build.json'))
+      #   json.dump(a + b, open('generated-sources.json', 'w'), indent=2)
+      #   "
+      #
+      #   # 4. Place generated-sources.json in the Flathub repo root.
+      - generated-sources.json
+
