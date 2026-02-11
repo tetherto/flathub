@@ -1,66 +1,77 @@
-app-id: com.pear.pass
+id: com.pear.pass
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
 command: pear-pass
+build-options:
+  strip: false
+  no-debuginfo: true
 finish-args:
   - --share=ipc
-  - --socket=x11
-  - --socket=wayland
-  - --socket=pulseaudio
   - --share=network
-  - --device=dri
-  - --filesystem=home
-  - --filesystem=xdg-config/pear:create
-  - --talk-name=org.freedesktop.Notifications
+  - --socket=x11
+  - --socket=pulseaudio
+  - --device=all
   - --talk-name=org.kde.StatusNotifierWatcher
-  - --own-name=org.kde.*
-
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+  - --talk-name=org.freedesktop.ScreenSaver
+  - --persist=.config/pear
 modules:
-  - name: pearpass
+  - name: pearpass-x64
+    only-arches:
+      - x86_64
     buildsystem: simple
     build-commands:
-      # Extract AppImage
+      - install -Dm644 com.pear.pass.metainfo.xml /app/share/metainfo/com.pear.pass.metainfo.xml
+      - install -Dm644 com.pear.pass.png /app/share/icons/hicolor/512x512/apps/com.pear.pass.png
+      - install -Dm644 com.pear.pass.desktop /app/share/applications/com.pear.pass.desktop
       - chmod +x PearPass.AppImage
       - ./PearPass.AppImage --appimage-extract
-      # Install binary (must be named pear-pass for Bare runtime to find app.bundle)
-      - install -Dm755 squashfs-root/usr/bin/pear-pass ${FLATPAK_DEST}/bin/pear-pass
-      # Install native libraries
-      - mkdir -p ${FLATPAK_DEST}/lib && cp -a squashfs-root/usr/lib/*.so ${FLATPAK_DEST}/lib/ 2>/dev/null || true
-      # Install app bundle
-      - if [ -d squashfs-root/usr/share/pear-pass ]; then mkdir -p ${FLATPAK_DEST}/share/pear-pass && cp -r squashfs-root/usr/share/pear-pass/* ${FLATPAK_DEST}/share/pear-pass/; fi
-      # Cleanup extracted AppImage
+      - install -Dm755 squashfs-root/usr/bin/pear-pass $FLATPAK_DEST/bin/pear-pass
+      - mkdir -p $FLATPAK_DEST/lib && cp -a squashfs-root/usr/lib/*.so $FLATPAK_DEST/lib/ 2>/dev/null || true
+      - if [ -d squashfs-root/usr/share/pear-pass ]; then mkdir -p $FLATPAK_DEST/share/pear-pass && cp -r squashfs-root/usr/share/pear-pass/* $FLATPAK_DEST/share/pear-pass/; fi
       - rm -rf squashfs-root PearPass.AppImage
-      # Install desktop integration files
-      - install -Dm644 com.pear.pass.desktop ${FLATPAK_DEST}/share/applications/com.pear.pass.desktop
-      - install -Dm644 com.pear.pass.metainfo.xml ${FLATPAK_DEST}/share/metainfo/com.pear.pass.metainfo.xml
-      - install -Dm644 icon.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/com.pear.pass.png
-    build-options:
-      env:
-        LD_LIBRARY_PATH: /app/lib
     sources:
-      # AppImage from GitHub releases - x86_64
       - type: file
-        only-arches:
-          - x86_64
         url: https://github.com/tetherto/pearpass-app-desktop/releases/download/v1.3.0/PearPass-Desktop-Linux-x64-v1.3.0.AppImage
         sha256: b6854af9d7c4f135b7267f2ac0c80b834fb162730d55068a2cdeccb3247985ba
         dest-filename: PearPass.AppImage
-      # AppImage from GitHub releases - aarch64
       - type: file
-        only-arches:
-          - aarch64
-        url: https://github.com/tetherto/pearpass-app-desktop/releases/download/v1.3.0/PearPass-Desktop-Linux-arm64-v1.3.0.AppImage
-        sha256: 0d789554259c3274dcb1e6ea78cf97c2747e4443a9c22cddeb83961de048db62
-        dest-filename: PearPass.AppImage
-      # Desktop file
+        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/53a7ffa5cd33e028553f3e28db98d11c6d33b77c/flatpak/com.pear.pass.desktop
+        sha256: 71a7cec28ed2cf62267e9b401acab4db9ffc0656aabe24ec354eff14c45f1d76
       - type: file
-        path: com.pear.pass.desktop
-      # Metainfo file
-      - type: file
-        path: com.pear.pass.metainfo.xml
-      # Application icon
+        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/53a7ffa5cd33e028553f3e28db98d11c6d33b77c/flatpak/com.pear.pass.metainfo.xml
+        sha256: 7e40647bdbda964f47933a2e68df858d486a3c7db19f4f13e560f6b60e4b5391
       - type: file
         url: https://pass.pears.com/wp-content/uploads/downloads/pearpass-logo-512x512.png
         sha256: a8ea7dc111b53d7da9a3afc24327bcc9f2f11a6bb5d431d6cf05b71cbfc0e70e
-        dest-filename: icon.png
+        dest-filename: com.pear.pass.png
+  - name: pearpass-arm64
+    only-arches:
+      - aarch64
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 com.pear.pass.metainfo.xml /app/share/metainfo/com.pear.pass.metainfo.xml
+      - install -Dm644 com.pear.pass.png /app/share/icons/hicolor/512x512/apps/com.pear.pass.png
+      - install -Dm644 com.pear.pass.desktop /app/share/applications/com.pear.pass.desktop
+      - chmod +x PearPass.AppImage
+      - ./PearPass.AppImage --appimage-extract
+      - install -Dm755 squashfs-root/usr/bin/pear-pass $FLATPAK_DEST/bin/pear-pass
+      - mkdir -p $FLATPAK_DEST/lib && cp -a squashfs-root/usr/lib/*.so $FLATPAK_DEST/lib/ 2>/dev/null || true
+      - if [ -d squashfs-root/usr/share/pear-pass ]; then mkdir -p $FLATPAK_DEST/share/pear-pass && cp -r squashfs-root/usr/share/pear-pass/* $FLATPAK_DEST/share/pear-pass/; fi
+      - rm -rf squashfs-root PearPass.AppImage
+    sources:
+      - type: file
+        url: https://github.com/tetherto/pearpass-app-desktop/releases/download/v1.3.0/PearPass-Desktop-Linux-arm64-v1.3.0.AppImage
+        sha256: 0d789554259c3274dcb1e6ea78cf97c2747e4443a9c22cddeb83961de048db62
+        dest-filename: PearPass.AppImage
+      - type: file
+        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/53a7ffa5cd33e028553f3e28db98d11c6d33b77c/flatpak/com.pear.pass.desktop
+        sha256: 71a7cec28ed2cf62267e9b401acab4db9ffc0656aabe24ec354eff14c45f1d76
+      - type: file
+        url: https://raw.githubusercontent.com/tetherto/pearpass-app-desktop/53a7ffa5cd33e028553f3e28db98d11c6d33b77c/flatpak/com.pear.pass.metainfo.xml
+        sha256: 7e40647bdbda964f47933a2e68df858d486a3c7db19f4f13e560f6b60e4b5391
+      - type: file
+        url: https://pass.pears.com/wp-content/uploads/downloads/pearpass-logo-512x512.png
+        sha256: a8ea7dc111b53d7da9a3afc24327bcc9f2f11a6bb5d431d6cf05b71cbfc0e70e
+        dest-filename: com.pear.pass.png
