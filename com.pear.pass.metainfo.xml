@@ -13,7 +13,7 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>Apache-2.0</project_license>
 
-  <url type="homepage">https://pearpass.io</url>
+  <url type="homepage">https://pass.pears.com/</url>
   <url type="bugtracker">https://github.com/tetherto/pearpass-app-desktop/issues</url>
   <url type="vcs-browser">https://github.com/tetherto/pearpass-app-desktop</url>
 
@@ -46,15 +46,11 @@
   <screenshots>
     <screenshot type="default">
       <caption>Main vault view with password entries</caption>
-      <image>https://pearpass.io/screenshots/vault-view.png</image>
-    </screenshot>
-    <screenshot>
-      <caption>Password generator with strength indicator</caption>
-      <image>https://pearpass.io/screenshots/password-generator.png</image>
+      <image>https://docs.pass.pears.com/~gitbook/image?url=https%3A%2F%2F1225431436-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FGLOPAmVDLwaNAimaXY1q%252Fuploads%252FJ0bJl4p1u2L2MiCy1sAJ%252FScreenshot%25202026-01-22%2520at%252017.54.09.png%3Falt%3Dmedia%26token%3D9376ab6c-0bde-4b39-9fbc-dba2f03c8240&width=768&dpr=3&quality=100&sign=882dfef2&sv=2</image>
     </screenshot>
     <screenshot>
       <caption>Secure notes and custom fields</caption>
-      <image>https://pearpass.io/screenshots/secure-notes.png</image>
+      <image>https://docs.pass.pears.com/~gitbook/image?url=https%3A%2F%2F1225431436-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fspaces%252FGLOPAmVDLwaNAimaXY1q%252Fuploads%252FEBt8h6r8u40NXQ7JYyNP%252FUntitled%2520design%2520%289%29.png%3Falt%3Dmedia%26token%3Dfb9a7009-62c1-49bc-bcf5-95b3bd17784b&width=768&dpr=3&quality=100&sign=29cf8c76&sv=2</image>
     </screenshot>
   </screenshots>
 
