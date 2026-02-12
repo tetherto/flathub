@@ -24,19 +24,22 @@ modules:
       - x86_64
     buildsystem: simple
     build-options:
-      append-path: /usr/lib/sdk/node22/bin
+      append-path: /usr/lib/sdk/node22/bin:/app/bin
+      env:
+        npm_config_prefix: /app
       build-args:
         - --share=network
     build-commands:
-      # Step 1: Build the appling
+      # Step 1: Build the appling (produces PearPass.AppDir)
       - npm install --global bare-build
       - cd appling && npm install
       - cd appling && bare-build --host=linux-x64 --icon lib/icons/linux/icon.png app.cjs
-      # Step 2: Install assets and binary
+      # Step 2: Install AppDir contents (binary, libs, app data)
+      - cp -a appling/PearPass.AppDir/usr/* $FLATPAK_DEST/
+      # Step 3: Install Flatpak assets (metainfo, icon, desktop file)
       - install -Dm644 flatpak/com.pears.pass.metainfo.xml /app/share/metainfo/com.pears.pass.metainfo.xml
       - install -Dm644 flatpak/com.pears.pass.png /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
       - install -Dm644 flatpak/com.pears.pass.desktop /app/share/applications/com.pears.pass.desktop
-      - install -Dm755 appling/dist/linux-x64/bin/pear-pass $FLATPAK_DEST/bin/pear-pass
     sources:
       - type: git
         url: https://github.com/tetherto/pearpass-app-desktop.git
@@ -51,19 +54,22 @@ modules:
       - aarch64
     buildsystem: simple
     build-options:
-      append-path: /usr/lib/sdk/node22/bin
+      append-path: /usr/lib/sdk/node22/bin:/app/bin
+      env:
+        npm_config_prefix: /app
       build-args:
         - --share=network
     build-commands:
-      # Step 1: Build the appling
+      # Step 1: Build the appling (produces PearPass.AppDir)
       - npm install --global bare-build
       - cd appling && npm install
       - cd appling && bare-build --host=linux-arm64 --icon lib/icons/linux/icon.png app.cjs
-      # Step 2: Install assets and binary
+      # Step 2: Install AppDir contents (binary, libs, app data)
+      - cp -a appling/PearPass.AppDir/usr/* $FLATPAK_DEST/
+      # Step 3: Install Flatpak assets (metainfo, icon, desktop file)
       - install -Dm644 flatpak/com.pears.pass.metainfo.xml /app/share/metainfo/com.pears.pass.metainfo.xml
       - install -Dm644 flatpak/com.pears.pass.png /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
       - install -Dm644 flatpak/com.pears.pass.desktop /app/share/applications/com.pears.pass.desktop
-      - install -Dm755 appling/dist/linux-arm64/bin/pear-pass $FLATPAK_DEST/bin/pear-pass
     sources:
       - type: git
         url: https://github.com/tetherto/pearpass-app-desktop.git
