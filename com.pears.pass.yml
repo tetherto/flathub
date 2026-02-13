@@ -2,9 +2,7 @@ id: com.pears.pass
 runtime: org.gnome.Platform
 runtime-version: '49'
 sdk: org.gnome.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.node22
-command: pear-pass
+command: pearpass
 build-options:
   strip: false
   no-debuginfo: true
@@ -12,71 +10,317 @@ finish-args:
   - --share=ipc
   - --share=network
   - --socket=x11
-  - --socket=pulseaudio
-  - --device=all
-  - --talk-name=org.kde.StatusNotifierWatcher
-  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
-  - --talk-name=org.freedesktop.ScreenSaver
-  - --persist=.config/pear
+  - --socket=wayland
+  - --device=dri
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.secrets
 modules:
-  - name: pearpass-x64
-    only-arches:
-      - x86_64
+  # Pattern aligned with io.tether.QVAC.Workbench:
+  # - one platform-agnostic assets module (desktop/metainfo/icon/etc)
+  # - one module per architecture for the binary payload
+  - name: pearpass-assets
     buildsystem: simple
-    build-options:
-      append-path: /usr/lib/sdk/node22/bin:/app/bin
-      env:
-        npm_config_prefix: /app
-      build-args:
-        - --share=network
     build-commands:
-      # Step 1: Build the appling (produces PearPass.AppDir)
-      - npm install --global bare-build
-      - cd appling && npm install
-      - cd appling && bare-build --host=linux-x64 --icon lib/icons/linux/icon.png app.cjs
-      # Step 2: Install AppDir contents (binary, libs, app data)
-      - cp -a appling/PearPass.AppDir/usr/* $FLATPAK_DEST/
-      # Step 3: Install Flatpak assets (metainfo, icon, desktop file)
-      - install -Dm644 flatpak/com.pears.pass.metainfo.xml /app/share/metainfo/com.pears.pass.metainfo.xml
-      - install -Dm644 flatpak/com.pears.pass.png /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
-      - install -Dm644 flatpak/com.pears.pass.desktop /app/share/applications/com.pears.pass.desktop
+      # Install Flatpak assets.
+      # NOTE: The current flatpak-assets tarball still ships `com.pear.pass.*`.
+      # These conditionals allow it to work now, and continue working once the
+      # tarball is updated to `com.pears.pass.*`.
+      - |
+        set -euo pipefail
+        meta_src=flatpak/com.pears.pass.metainfo.xml
+        desk_src=flatpak/com.pears.pass.desktop
+        icon_src=flatpak/com.pears.pass.png
+
+        [ -f "$meta_src" ] || meta_src=flatpak/com.pear.pass.metainfo.xml
+        [ -f "$desk_src" ] || desk_src=flatpak/com.pear.pass.desktop
+        [ -f "$icon_src" ] || icon_src=flatpak/com.pear.pass.png
+        # Current upstream assets tarball ships a generic icon filename.
+        [ -f "$icon_src" ] || icon_src=flatpak/pearpass-logo-512x512.png
+
+        install -Dm644 "$meta_src" /app/share/metainfo/com.pears.pass.metainfo.xml
+        install -Dm644 "$icon_src" /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
+        install -Dm644 "$desk_src" /app/share/applications/com.pears.pass.desktop
+
+        # Ensure IDs inside the installed files match the app-id.
+        sed -i 's/com\.pear\.pass/com.pears.pass/g' /app/share/metainfo/com.pears.pass.metainfo.xml
+        sed -i 's/com\.pear\.pass/com.pears.pass/g' /app/share/applications/com.pears.pass.desktop
+
+
+        # Ensure the desktop launcher uses the wrapper script entrypoint.
+        sed -i 's/^Exec=.*/Exec=pearpass %U/' /app/share/applications/com.pears.pass.desktop
+
+      # Optional: if DevOps adds extra shared (arch-independent) assets later,
+      # allow them to be shipped in the same tarball.
+      - if [ -d pear-pass ]; then install -d /app/share/pear-pass; cp -a pear-pass/. /app/share/pear-pass/; fi
     sources:
-      - type: git
-        url: https://github.com/tetherto/pearpass-app-desktop.git
-        tag: v1.3.0
-        commit: 0c96cc95374d39093ef915ece6a3712ceb3a75ac
       - type: archive
         url: https://static.tether.dev/pearpass/flatpak-assets-1.0.0.tar.gz
         sha512: 05f04b50ee89661b996c7314e02cc12969c6a83ade0f5fe45b5a334425c3524b81033d27847eb26133aa1bfe076969b86838230f77cafb5d312047006b8d146b
         strip-components: 0
-  - name: pearpass-arm64
-    only-arches:
-      - aarch64
+
+  - name: pearpass-aarch64
+    only-arches: [aarch64]
     buildsystem: simple
-    build-options:
-      append-path: /usr/lib/sdk/node22/bin:/app/bin
-      env:
-        npm_config_prefix: /app
-      build-args:
-        - --share=network
     build-commands:
-      # Step 1: Build the appling (produces PearPass.AppDir)
-      - npm install --global bare-build
-      - cd appling && npm install
-      - cd appling && bare-build --host=linux-arm64 --icon lib/icons/linux/icon.png app.cjs
-      # Step 2: Install AppDir contents (binary, libs, app data)
-      - cp -a appling/PearPass.AppDir/usr/* $FLATPAK_DEST/
-      # Step 3: Install Flatpak assets (metainfo, icon, desktop file)
-      - install -Dm644 flatpak/com.pears.pass.metainfo.xml /app/share/metainfo/com.pears.pass.metainfo.xml
-      - install -Dm644 flatpak/com.pears.pass.png /app/share/icons/hicolor/512x512/apps/com.pears.pass.png
-      - install -Dm644 flatpak/com.pears.pass.desktop /app/share/applications/com.pears.pass.desktop
+      - install -Dm755 pearpass /app/bin/pear-pass
+      - |
+        install -d /app/bin
+        cat > /app/bin/pearpass <<'EOF'
+        #!/bin/bash
+
+        export LD_LIBRARY_PATH="/app/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+        # Work around upstream storage-path sanitization: Flatpak exposes per-app
+        # writable locations under /var/{data,config,cache} (no dot-prefixed
+        # path segments like $HOME/.var/...). Force XDG paths to these locations.
+        export XDG_DATA_HOME=/var/data
+        export XDG_CONFIG_HOME=/var/config
+        export XDG_CACHE_HOME=/var/cache
+
+        # Pear does not consistently respect XDG paths and may hardcode $HOME/.config.
+        # In Flatpak, $XDG_CONFIG_HOME is the per-app config dir; create a compatibility
+        # symlink so Pear installs its runtime where we can access it.
+        if [[ -n "${XDG_CONFIG_HOME:-}" && ! -e "$HOME/.config" ]]; then
+          ln -s "$XDG_CONFIG_HOME" "$HOME/.config"
+        fi
+        if [[ -n "${XDG_CACHE_HOME:-}" && ! -e "$HOME/.cache" ]]; then
+          ln -s "$XDG_CACHE_HOME" "$HOME/.cache"
+        fi
+
+        # Read Pear app key. If the file is missing, extract it from app.bundle.
+        PEAR_APP_KEY="$(cat /app/share/pear-pass/pear-app-key 2>/dev/null || true)"
+        if [[ -z "$PEAR_APP_KEY" && -f /app/share/pear-pass/app.bundle ]]; then
+                  # Pear app key appears as a 52-char lowercase base32-ish token.
+                  PEAR_APP_KEY="$(LC_ALL=C grep -aoE '[a-z0-9]{52}' /app/share/pear-pass/app.bundle | head -n 1 || true)"
+        fi
+
+
+        # Locate pear-runtime (upstream has used different by-arch directory names)
+        ARCH="$(uname -m)"
+        PEAR_RUNTIME=""
+
+
+        CFG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+        # Pear does not consistently respect XDG paths; check both XDG and ~/.config.
+        PEAR_BASES=(
+          "$CFG_HOME/pear"
+          "$CFG_HOME/pear-runtime"
+          "$HOME/.config/pear"
+          "$HOME/.config/pear-runtime"
+          "/run/host/user-config/pear"
+          "/run/host/user-config/pear-runtime"
+        )
+
+        CANDIDATES=("$ARCH")
+        case "$ARCH" in
+          x86_64)        CANDIDATES+=("linux-x64") ;;
+          aarch64|arm64) CANDIDATES+=("linux-arm64") ;;
+        esac
+
+        for base in "${PEAR_BASES[@]}"; do
+          [[ -d "$base" ]] || continue
+          for a in "${CANDIDATES[@]}"; do
+            p="$base/current/by-arch/$a/bin/pear-runtime"
+            if [[ -x "$p" ]]; then
+              PEAR_RUNTIME="$p"
+              break 2
+            fi
+          done
+        done
+
+        # Also handle installs under:
+        #   <base>/by-dkey/<dkey>/<version>/by-arch/<arch>/bin/pear-runtime
+        if [[ -z "$PEAR_RUNTIME" ]]; then
+          for base in "${PEAR_BASES[@]}"; do
+            [[ -d "$base" ]] || continue
+            PEAR_RUNTIME="$(find "$base" -maxdepth 10 -type f -perm -111 \
+              -path '*/by-arch/*/bin/pear-runtime' 2>/dev/null | head -n 1 || true)"
+            [[ -n "$PEAR_RUNTIME" ]] && break
+          done
+        fi
+
+        # Common Chromium/Electron flags for both runtime and bootstrapper.
+        # On Wayland sessions, explicitly force Wayland Ozone if DISPLAY is not set;
+        # otherwise Chromium may try X11 and exit with "Missing X server or $DISPLAY".
+        CHROME_FLAGS=(--no-sandbox)
+        if [[ -n "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
+          CHROME_FLAGS+=(--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations)
+        else
+          CHROME_FLAGS+=(--ozone-platform-hint=auto)
+        fi
+
+        # Application storage path – upstream validateAndSanitizePath rejects:
+        #   1. Dot-prefixed segments not in whitelist (only .config allowed)
+        #   2. Paths under forbidden roots (/var, /tmp, /etc, …)
+        # $HOME/.config/pearpass satisfies both: .config is whitelisted and
+        # /home/… is not a forbidden root. The wrapper already symlinks
+        # $HOME/.config → $XDG_CONFIG_HOME (/var/config), so this is writable.
+        PEAR_STORE="$HOME/.config/pearpass"
+        mkdir -p "$PEAR_STORE"
+
+        if [[ -n "$PEAR_RUNTIME" && -n "$PEAR_APP_KEY" ]]; then
+          # Pear platform installed - exec runtime directly so it becomes
+          # the main process and flatpak keeps the sandbox alive.
+                  exec "$PEAR_RUNTIME" run --store "$PEAR_STORE" "pear://$PEAR_APP_KEY" -- "${CHROME_FLAGS[@]}" "$@"
+        else
+          # Platform not yet installed - fall back to the bootstrapper
+          # The bootstrapper expects to find `app.bundle` via bare:/app.bundle,
+          # so run from the directory where we ship it.
+          if [ -d /app/share/pear-pass ]; then
+            cd /app/share/pear-pass
+          fi
+                  exec -a pearpass /app/bin/pear-pass "${CHROME_FLAGS[@]}" "$@"
+        fi
+        EOF
+        chmod 0755 /app/bin/pearpass
+      - if [ -d lib ]; then install -d /app/lib; cp -a lib/. /app/lib/; fi
+      - if [ -d pear-pass ]; then install -d /app/share/pear-pass; cp -a pear-pass/. /app/share/pear-pass/; fi
+      - |
+        # Generate pear-app-key file from the bundle so the wrapper can start pear-runtime.
+        set -euo pipefail
+        if [ -f /app/share/pear-pass/app.bundle ] && [ ! -f /app/share/pear-pass/pear-app-key ]; then
+                  key="$(LC_ALL=C grep -aoE '[a-z0-9]{52}' /app/share/pear-pass/app.bundle | head -n 1 || true)"
+          if [ -n "$key" ]; then
+            printf '%s\n' "$key" > /app/share/pear-pass/pear-app-key
+          fi
+        fi
     sources:
-      - type: git
-        url: https://github.com/tetherto/pearpass-app-desktop.git
-        tag: v1.3.0
-        commit: 0c96cc95374d39093ef915ece6a3712ceb3a75ac
       - type: archive
-        url: https://static.tether.dev/pearpass/flatpak-assets-1.0.0.tar.gz
-        sha512: 05f04b50ee89661b996c7314e02cc12969c6a83ade0f5fe45b5a334425c3524b81033d27847eb26133aa1bfe076969b86838230f77cafb5d312047006b8d146b
+        url: https://static.tether.dev/pearpass/PearPass.linux.arm64.bin.tar.gz
+        sha256: c0c31d43e31de85f60a0d3aab5fef29c68970616430354f44828bc98b5a72978
+        # Archive has no top-level directory; keep paths intact (also keeps the top-level `pearpass` binary).
+        strip-components: 0
+
+  - name: pearpass-x86_64
+    only-arches: [x86_64]
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 pearpass /app/bin/pear-pass
+      - |
+        install -d /app/bin
+        cat > /app/bin/pearpass <<'EOF'
+        #!/bin/bash
+
+        export LD_LIBRARY_PATH="/app/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+        # Work around upstream storage-path sanitization: Flatpak exposes per-app
+        # writable locations under /var/{data,config,cache} (no dot-prefixed
+        # path segments like $HOME/.var/...). Force XDG paths to these locations.
+        export XDG_DATA_HOME=/var/data
+        export XDG_CONFIG_HOME=/var/config
+        export XDG_CACHE_HOME=/var/cache
+
+        # Pear does not consistently respect XDG paths and may hardcode $HOME/.config.
+        # In Flatpak, $XDG_CONFIG_HOME is the per-app config dir; create a compatibility
+        # symlink so Pear installs its runtime where we can access it.
+        if [[ -n "${XDG_CONFIG_HOME:-}" && ! -e "$HOME/.config" ]]; then
+          ln -s "$XDG_CONFIG_HOME" "$HOME/.config"
+        fi
+        if [[ -n "${XDG_CACHE_HOME:-}" && ! -e "$HOME/.cache" ]]; then
+          ln -s "$XDG_CACHE_HOME" "$HOME/.cache"
+        fi
+
+        # Read Pear app key. If the file is missing, extract it from app.bundle.
+        PEAR_APP_KEY="$(cat /app/share/pear-pass/pear-app-key 2>/dev/null || true)"
+        if [[ -z "$PEAR_APP_KEY" && -f /app/share/pear-pass/app.bundle ]]; then
+                  # Pear app key appears as a 52-char lowercase base32-ish token.
+                  PEAR_APP_KEY="$(LC_ALL=C grep -aoE '[a-z0-9]{52}' /app/share/pear-pass/app.bundle | head -n 1 || true)"
+        fi
+
+
+        # Locate pear-runtime (upstream has used different by-arch directory names)
+        ARCH="$(uname -m)"
+        PEAR_RUNTIME=""
+
+
+        CFG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+        # Pear does not consistently respect XDG paths; check both XDG and ~/.config.
+        PEAR_BASES=(
+          "$CFG_HOME/pear"
+          "$CFG_HOME/pear-runtime"
+          "$HOME/.config/pear"
+          "$HOME/.config/pear-runtime"
+          "/run/host/user-config/pear"
+          "/run/host/user-config/pear-runtime"
+        )
+
+        CANDIDATES=("$ARCH")
+        case "$ARCH" in
+          x86_64)        CANDIDATES+=("linux-x64") ;;
+          aarch64|arm64) CANDIDATES+=("linux-arm64") ;;
+        esac
+
+        for base in "${PEAR_BASES[@]}"; do
+          [[ -d "$base" ]] || continue
+          for a in "${CANDIDATES[@]}"; do
+            p="$base/current/by-arch/$a/bin/pear-runtime"
+            if [[ -x "$p" ]]; then
+              PEAR_RUNTIME="$p"
+              break 2
+            fi
+          done
+        done
+
+        # Also handle installs under:
+        #   <base>/by-dkey/<dkey>/<version>/by-arch/<arch>/bin/pear-runtime
+        if [[ -z "$PEAR_RUNTIME" ]]; then
+          for base in "${PEAR_BASES[@]}"; do
+            [[ -d "$base" ]] || continue
+            PEAR_RUNTIME="$(find "$base" -maxdepth 10 -type f -perm -111 \
+              -path '*/by-arch/*/bin/pear-runtime' 2>/dev/null | head -n 1 || true)"
+            [[ -n "$PEAR_RUNTIME" ]] && break
+          done
+        fi
+
+        # Common Chromium/Electron flags for both runtime and bootstrapper.
+        # On Wayland sessions, explicitly force Wayland Ozone if DISPLAY is not set;
+        # otherwise Chromium may try X11 and exit with "Missing X server or $DISPLAY".
+        CHROME_FLAGS=(--no-sandbox)
+        if [[ -n "${WAYLAND_DISPLAY:-}" && -z "${DISPLAY:-}" ]]; then
+          CHROME_FLAGS+=(--ozone-platform=wayland --enable-features=UseOzonePlatform,WaylandWindowDecorations)
+        else
+          CHROME_FLAGS+=(--ozone-platform-hint=auto)
+        fi
+
+        # Application storage path – upstream validateAndSanitizePath rejects:
+        #   1. Dot-prefixed segments not in whitelist (only .config allowed)
+        #   2. Paths under forbidden roots (/var, /tmp, /etc, …)
+        # $HOME/.config/pearpass satisfies both: .config is whitelisted and
+        # /home/… is not a forbidden root. The wrapper already symlinks
+        # $HOME/.config → $XDG_CONFIG_HOME (/var/config), so this is writable.
+        PEAR_STORE="$HOME/.config/pearpass"
+        mkdir -p "$PEAR_STORE"
+
+        if [[ -n "$PEAR_RUNTIME" && -n "$PEAR_APP_KEY" ]]; then
+          # Pear platform installed - exec runtime directly so it becomes
+          # the main process and flatpak keeps the sandbox alive.
+                  exec "$PEAR_RUNTIME" run --store "$PEAR_STORE" "pear://$PEAR_APP_KEY" -- "${CHROME_FLAGS[@]}" "$@"
+        else
+          # Platform not yet installed - fall back to the bootstrapper
+          # The bootstrapper expects to find `app.bundle` via bare:/app.bundle,
+          # so run from the directory where we ship it.
+          if [ -d /app/share/pear-pass ]; then
+            cd /app/share/pear-pass
+          fi
+                  exec -a pearpass /app/bin/pear-pass "${CHROME_FLAGS[@]}" "$@"
+        fi
+        EOF
+        chmod 0755 /app/bin/pearpass
+      - if [ -d lib ]; then install -d /app/lib; cp -a lib/. /app/lib/; fi
+      - if [ -d pear-pass ]; then install -d /app/share/pear-pass; cp -a pear-pass/. /app/share/pear-pass/; fi
+      - |
+        # Generate pear-app-key file from the bundle so the wrapper can start pear-runtime.
+        set -euo pipefail
+        if [ -f /app/share/pear-pass/app.bundle ] && [ ! -f /app/share/pear-pass/pear-app-key ]; then
+                  key="$(LC_ALL=C grep -aoE '[a-z0-9]{52}' /app/share/pear-pass/app.bundle | head -n 1 || true)"
+          if [ -n "$key" ]; then
+            printf '%s\n' "$key" > /app/share/pear-pass/pear-app-key
+          fi
+        fi
+    sources:
+      - type: archive
+        url: https://static.tether.dev/pearpass/PearPass.linux.x64.bin.tar.gz
+        sha256: aaa739985d82ab4bc4eda56ca25413fde267f2422f66292ee49d343d54956748
+        # Archive has no top-level directory; keep paths intact.
         strip-components: 0
 
