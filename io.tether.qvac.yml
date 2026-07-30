@@ -17,6 +17,7 @@ finish-args:
   - --talk-name=org.kde.StatusNotifierWatcher
   - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
   - --talk-name=org.freedesktop.ScreenSaver
+  - --talk-name=org.freedesktop.secrets
   - --persist=.config/pear
   - --persist=.qvac
 modules:
